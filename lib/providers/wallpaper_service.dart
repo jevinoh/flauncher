@@ -25,6 +25,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
+
+import '../utils.dart';
 
 class WallpaperService extends ChangeNotifier {
   final FLauncherChannel _fLauncherChannel;
@@ -49,11 +52,29 @@ class WallpaperService extends ChangeNotifier {
 
   Future<void> _init() async {
     final directory = await getApplicationDocumentsDirectory();
-    _wallpaperFile = File("${directory.path}/wallpaper");
+    logDebug("App directory: ${directory.path}");
+
+    _wallpaperFile = File("${directory.path}/tv_background.jpg");
+
     if (await _wallpaperFile.exists()) {
+      logDebug("Using user-selected wallpaper");
       _wallpaper = FileImage(_wallpaperFile);
-      notifyListeners();
+    } else {
+      logDebug("Using default asset wallpaper");
+      try {
+        ByteData assetData = await rootBundle.load('assets/tv_background.jpg');
+        Uint8List bytes = assetData.buffer.asUint8List();
+
+        // Save asset wallpaper to file for future use
+        await _wallpaperFile.writeAsBytes(bytes);
+
+        _wallpaper = MemoryImage(bytes);
+      } catch (e) {
+        logDebug("Failed to load asset wallpaper: $e");
+      }
     }
+
+    notifyListeners();
   }
 
   Future<void> pickWallpaper() async {
@@ -63,11 +84,14 @@ class WallpaperService extends ChangeNotifier {
 
     final imagePicker = ImagePicker();
     final pickedFile = await imagePicker.pickImage(source: ImageSource.gallery);
+
     if (pickedFile != null) {
       Uint8List bytes = await pickedFile.readAsBytes();
       await _wallpaperFile.writeAsBytes(bytes);
 
       _wallpaper = MemoryImage(bytes);
+      logDebug("User-selected wallpaper updated");
+
       notifyListeners();
     }
   }

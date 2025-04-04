@@ -111,19 +111,28 @@ public class MainActivity extends FlutterActivity
                 if (!activitiesInfo.first) {
                     tvActivitiesInfo = activitiesInfo.second;
                 }
-                else {
-                    nonTvActivitiesInfo = activitiesInfo.second;
-                }
+//                else {
+//                    nonTvActivitiesInfo = activitiesInfo.second;
+//                }
             } catch (InterruptedException | ExecutionException ignored) { }
             finally {
                 completed += 1;
             }
         }
 
+        for (ResolveInfo resolveInfo : tvActivitiesInfo) {
+            String packageName = resolveInfo.activityInfo.packageName;
+            android.util.Log.d("getApplications", "TV App Package: " + packageName);
+        }
+
+//        for (ResolveInfo resolveInfo : nonTvActivitiesInfo) {
+//            String packageName = resolveInfo.activityInfo.packageName;
+//            android.util.Log.d("getApplications", "Non-TV App Package: " + packageName);
+//        }
+
         CompletionService<Map<String, Serializable>> completionService = new ExecutorCompletionService<>(executor);
 
-        List<Map<String, Serializable>> applications = new ArrayList<>(
-                tvActivitiesInfo.size() + nonTvActivitiesInfo.size());
+        List<Map<String, Serializable>> applications = new ArrayList<>(tvActivitiesInfo.size());
 
         boolean settingsPresent = false;
         int appCount = 0;
@@ -136,25 +145,25 @@ public class MainActivity extends FlutterActivity
             appCount += 1;
         }
 
-        for (ResolveInfo nonTvActivityInfo : nonTvActivitiesInfo) {
-            boolean nonDuplicate = true;
-
-            if (!settingsPresent) {
-                settingsPresent = nonTvActivityInfo.activityInfo.packageName.equals("com.android.settings");
-            }
-
-            for (ResolveInfo tvActivityInfo : tvActivitiesInfo) {
-                if (tvActivityInfo.activityInfo.packageName.equals(nonTvActivityInfo.activityInfo.packageName)) {
-                    nonDuplicate = false;
-                    break;
-                }
-            }
-
-            if (nonDuplicate) {
-                appCount += 1;
-                completionService.submit(() -> buildAppMap(nonTvActivityInfo.activityInfo, true, null));
-            }
-        }
+//        for (ResolveInfo nonTvActivityInfo : nonTvActivitiesInfo) {
+//            boolean nonDuplicate = true;
+//
+//            if (!settingsPresent) {
+//                settingsPresent = nonTvActivityInfo.activityInfo.packageName.equals("com.android.settings");
+//            }
+//
+//            for (ResolveInfo tvActivityInfo : tvActivitiesInfo) {
+//                if (tvActivityInfo.activityInfo.packageName.equals(nonTvActivityInfo.activityInfo.packageName)) {
+//                    nonDuplicate = false;
+//                    break;
+//                }
+//            }
+//
+//            if (nonDuplicate) {
+//                appCount += 1;
+//                completionService.submit(() -> buildAppMap(nonTvActivityInfo.activityInfo, true, null));
+//            }
+//        }
 
         while (appCount > 0) {
             try {
@@ -258,6 +267,7 @@ public class MainActivity extends FlutterActivity
         else {
             category = Intent.CATEGORY_LEANBACK_LAUNCHER;
         }
+        android.util.Log.d("queryIntentActivities", "addcategory category: " + category);
 
         // NOTE: Would be nice to query the applications that match *either* of the above categories
         // but from the addCategory function documentation, it says that it will "use activities
@@ -333,6 +343,8 @@ public class MainActivity extends FlutterActivity
     }
 
     private boolean isDefaultLauncher() {
+        android.util.Log.d("isDefaultLauncher", "addCategory category: " + Intent.CATEGORY_HOME);
+
         Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
         ResolveInfo defaultLauncher = getPackageManager().resolveActivity(intent, 0);
 

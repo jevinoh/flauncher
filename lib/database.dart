@@ -27,6 +27,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flauncher/models/app.dart';
 import 'package:flauncher/models/category.dart';
 
+import 'utils.dart';
+
 part 'database.drift.dart';
 
 @UseRowClass(App)
@@ -142,24 +144,37 @@ class FLauncherDatabase extends _$FLauncherDatabase
   Future<void> deleteApps(List<String> packageNames) =>
       (delete(apps)..where((tbl) => tbl.packageName.isIn(packageNames))).go();
 
-  Future<int> insertCategory(Insertable<Category> category) => into(categories).insert(category);
 
+  Future<int> insertCategory(Insertable<Category> category) {
+    final categoryMap = category.toColumns(true);
+    logDebug("addCategory - name: ${categoryMap['name']}");
+    return into(categories).insert(category);
+  }
   Future<void> deleteCategory(int id) => (delete(categories)..where((tbl) => tbl.id.equals(id))).go();
 
-  Future<void> updateCategories(List<CategoriesCompanion> values) => batch(
-        (batch) {
-          for (final value in values) {
-            batch.update<$CategoriesTable, Category>(
-              categories,
-              value,
-              where: (table) => (table.id.equals(value.id.value)),
-            );
-          }
-        },
-      );
+  Future<void> updateCategories(List<CategoriesCompanion> values) {
+    for( var value in values) {
+      logDebug("updateCategories - name: ${value.name}");
+    }
 
-  Future<void> updateCategory(int id, CategoriesCompanion value) =>
-      (update(categories)..where((tbl) => tbl.id.equals(id))).write(value);
+    return batch(
+          (batch) {
+        for (final value in values) {
+          batch.update<$CategoriesTable, Category>(
+            categories,
+            value,
+            where: (table) => (table.id.equals(value.id.value)),
+          );
+        }
+      },
+    );
+  }
+
+  Future<void> updateCategory(int id, CategoriesCompanion value) {
+    logDebug("updateCategory - name: ${value.name}");
+
+    return (update(categories)..where((tbl) => tbl.id.equals(id))).write(value);
+  }
 
   Future<void> deleteAppCategory(int categoryId, String packageName) => (delete(appsCategories)
         ..where((tbl) => tbl.categoryId.equals(categoryId) & tbl.appPackageName.equals(packageName)))
@@ -230,6 +245,8 @@ class FLauncherDatabase extends _$FLauncherDatabase
 
 DatabaseConnection connect() => DatabaseConnection.delayed(() async {
       final dbFolder = await getApplicationDocumentsDirectory();
+      logDebug("connect database - path: ${dbFolder.path}");
+
       final file = File(path.join(dbFolder.path, 'db.sqlite'));
       return DatabaseConnection(NativeDatabase(file, logStatements: foundation.kDebugMode));
     }());

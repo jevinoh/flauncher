@@ -29,6 +29,10 @@ import 'package:tuple/tuple.dart';
 import '../models/app.dart';
 import '../models/category.dart';
 
+import '../utils.dart';
+import '../models/category.dart';
+
+
 class AppsService extends ChangeNotifier
 {
   final FLauncherChannel _fLauncherChannel;
@@ -60,6 +64,7 @@ class AppsService extends ChangeNotifier
     }
 
     _fLauncherChannel.addAppsChangedListener((event) async {
+      logDebug("event action ${event["action"]}");
       switch (event["action"]) {
         case "PACKAGE_ADDED":
         case "PACKAGE_CHANGED":
@@ -118,28 +123,33 @@ class AppsService extends ChangeNotifier
 
   Future<void> _initDefaultCategories() {
     final tvApplications = _applications.values.where((application) => application.sideloaded == false);
-    final nonTvApplications = _applications.values.where((application) => application.sideloaded == true);
+    // final nonTvApplications = _applications.values.where((application) => application.sideloaded == true);
 
     return _database.transaction(() async {
       if (tvApplications.isNotEmpty) {
-        int categoryId = await addCategory("TV Applications",
-            type: CategoryType.grid, shouldNotifyListeners: false
+        logDebug("addCategory : My Lists");
+        int categoryId = await addCategory("My Lists",
+            type: CategoryType.row, shouldNotifyListeners: false
         );
 
         Category tvAppsCategory = _categoriesById[categoryId]!;
+        tvAppsCategory.sort = CategorySort.manual;
         for (final app in tvApplications) {
           await addToCategory(app, tvAppsCategory, shouldNotifyListeners: false);
         }
+
+        sortCategory(tvAppsCategory);
+
       }
-      if (nonTvApplications.isNotEmpty) {
-        int categoryId = await addCategory("Non-TV Applications",
-          shouldNotifyListeners: false,
-        );
-        Category nonTvAppsCategory = _categoriesById[categoryId]!;
-        for (final app in nonTvApplications) {
-          await addToCategory(app, nonTvAppsCategory, shouldNotifyListeners: false);
-        }
-      }
+      // if (nonTvApplications.isNotEmpty) {
+      //   int categoryId = await addCategory("Non-TV Applications",
+      //     shouldNotifyListeners: false,
+      //   );
+      //   Category nonTvAppsCategory = _categoriesById[categoryId]!;
+      //   for (final app in nonTvApplications) {
+      //     await addToCategory(app, nonTvAppsCategory, shouldNotifyListeners: false);
+      //   }
+      // }
     });
   }
 
@@ -153,9 +163,25 @@ class AppsService extends ChangeNotifier
             (appFromSystem) => new MapEntry(appFromSystem['packageName'], Tuple2(appFromSystem, _buildAppCompanion(appFromSystem))));
     Map<String, Tuple2<Map, AppsCompanion>> appsFromSystemByPackageName = Map.fromEntries(appEntries);
 
+    for (var entry in appEntries) {
+      logDebug("appEntries - Package Name: ${entry.key}");
+    }
+
+    for (var entry in appsFromSystemByPackageName.entries) {
+      logDebug("appsFromSystemByPackageName - Package Name: ${entry.key}");
+    }
+
     List<App> appsFromDatabase = await appsFromDatabaseFuture;
     final Iterable<App> appsRemovedFromSystem = appsFromDatabase
         .where((app) => !appsFromSystemByPackageName.containsKey(app.packageName));
+
+    for (var app in appsFromDatabase) {
+      logDebug("appsFromDatabase - Package Name: ${app.packageName}");
+    }
+
+    for (var app in appsRemovedFromSystem) {
+      logDebug("appsRemovedFromSystem - Package Name: ${app.packageName}");
+    }
 
     final List<String> uninstalledApplications = [];
     for (App app in appsRemovedFromSystem) {
@@ -164,6 +190,7 @@ class AppsService extends ChangeNotifier
       // TODO: Is this really necessary? Can't we get this information from the getApplications method?
       bool appExists = await _fLauncherChannel.applicationExists(packageName);
       if (!appExists) {
+        logDebug("uninstalledApplications - Package Name: ${packageName}");
         uninstalledApplications.add(packageName);
       }
     }
@@ -182,8 +209,27 @@ class AppsService extends ChangeNotifier
     List<Category> categories = await categoriesFuture;
     List<LauncherSpacer> spacers = await spacersFuture;
 
+    categories.removeWhere((category) => category.id == 2);
+
+    for (var category in appsCategories) {
+      logDebug("appsCategories - ID[${category.categoryId}] Name[${category.appPackageName}]");
+    }
+
+    for (var category in categories) {
+      logDebug("categories - Name: ${category.name}");
+    }
+
+
     _categoriesById = Map.fromEntries(categories.map((category) => MapEntry(category.id, category)));
     _applications = Map.fromEntries(appsFromDatabase.map((application) => MapEntry(application.packageName, application)));
+
+    for (var app in _applications.entries) {
+      logDebug("_applications - Name[${app.value.packageName}]");
+    }
+
+    for (var category in _categoriesById.entries) {
+      logDebug("_categoriesById - ID[${category.value.id}] Name[${category.value.name}]");
+    }
 
     _launcherSections.clear();
     _launcherSections.addAll(categories);
@@ -202,16 +248,13 @@ class AppsService extends ChangeNotifier
         }
       }
 
-      if (appsCategories.isNotEmpty && !application.hidden) {
-        Iterable<AppCategory> currentApplicationCategories = appsCategories
-            .where((appCategory) => appCategory.appPackageName == application.packageName);
+      int categoryId = 1; // for TV app lists
 
-        for (AppCategory appCategory in currentApplicationCategories) {
-          if (_categoriesById.containsKey(appCategory.categoryId)) {
-            Category category = _categoriesById[appCategory.categoryId]!;
-            application.categoryOrders[category.id] = appCategory.order;
-            category.applications.add(application);
-          }
+      if (!application.hidden) {
+        if (_categoriesById.containsKey(categoryId)) {
+          Category category = _categoriesById[categoryId]!;
+          application.categoryOrders[category.id] = CategorySort.manual.index;
+          category.applications.add(application);
         }
       }
     }
@@ -226,15 +269,35 @@ class AppsService extends ChangeNotifier
   }
 
   void sortCategory(Category category) {
-    if (category.sort == CategorySort.alphabetical) {
-      category.applications.sortBy(
-              (application) => application.name);
-    }
-    else {
-      category.applications.sortBy<num>(
-              (application) => application.categoryOrders[category.id]!);
-    }
+    logDebug("start");
+
+    // priority app packagenames in the specific order
+    // TODO: find the zigapp apk to check it's actual packagename
+    final priorityApps = ['zigapp', 'com.netflix.ninja', 'com.hulu.plus', 'com.amazon.amazonvideo.livingroom'];
+
+    category.applications.sort((a, b) {
+      final indexA = priorityApps.indexWhere((name) => a.packageName.toLowerCase().contains(name));
+      final indexB = priorityApps.indexWhere((name) => b.packageName.toLowerCase().contains(name));
+
+      final isAInPriority = indexA != -1;
+      final isBInPriority = indexB != -1;
+
+      // Both in priority list → sort by defined order
+      if (isAInPriority && isBInPriority) {
+        return indexA.compareTo(indexB);
+      }
+
+      // Only A is in priority list → A comes first
+      if (isAInPriority) return -1;
+
+      // Only B is in priority list → B comes first
+      if (isBInPriority) return 1;
+
+      // Neither is in priority list → keep existing order
+      return 0;
+    });
   }
+
 
   Future<Uint8List> getAppBanner(String packageName) {
     return _fLauncherChannel.getApplicationBanner(packageName);
@@ -268,6 +331,8 @@ class AppsService extends ChangeNotifier
 
   Future<void> addToCategory(App app, Category category, {bool shouldNotifyListeners = true}) async {
     int index = await _database.nextAppCategoryOrder(category.id) ?? 0;
+    logDebug("insertAppsCategories - Name: ${category.name}");
+
     await _database.insertAppsCategories([
       AppsCategoriesCompanion.insert(
         categoryId: category.id,
@@ -338,6 +403,8 @@ class AppsService extends ChangeNotifier
     int rowHeight = Category.RowHeight,
     bool shouldNotifyListeners = true
   }) async {
+    logDebug("Category Name: ${categoryName}");
+
     List<CategoriesCompanion> orderedCategories = [];
     int categoryOrder = 1, newCategoryId = -1;
     for (Category category in _categoriesById.values) {
@@ -393,6 +460,8 @@ class AppsService extends ChangeNotifier
     bool shouldNotifyListeners = true
     }) async
   {
+    logDebug("Category Name: ${name}");
+
     Category? category = _categoriesById[categoryId];
     assert(category != null);
 
@@ -448,6 +517,8 @@ class AppsService extends ChangeNotifier
   }
 
   Future<void> renameCategory(Category category, String categoryName) async {
+    logDebug("updateCategory -> Name: ${category.name}");
+
     await _database.updateCategory(category.id, CategoriesCompanion(name: Value(categoryName)));
 
     if (_categoriesById.containsKey(category.id)) {

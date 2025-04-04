@@ -45,7 +45,7 @@ class _ApplicationsPanelPageState extends State<ApplicationsPanelPage> {
     AppLocalizations localizations = AppLocalizations.of(context)!;
 
     if (_title.isEmpty) {
-      _title = localizations.tvApplications;
+      _title = localizations.myLists;
     }
 
     return DefaultTabController(
@@ -60,7 +60,7 @@ class _ApplicationsPanelPageState extends State<ApplicationsPanelPage> {
                 onTap: (index) {
                   switch (index) {
                     case 0:
-                      setState(() => _title = localizations.tvApplications);
+                      setState(() => _title = localizations.myLists);
                       break;
                     case 1:
                       setState(() => _title = localizations.nonTvApplications);
