@@ -30,6 +30,7 @@ import 'package:tuple/tuple.dart';
 
 import '../models/app.dart';
 import '../models/category.dart';
+import '../utils.dart';
 
 const _validationKeys = [LogicalKeyboardKey.select, LogicalKeyboardKey.enter, LogicalKeyboardKey.gameButtonA];
 
@@ -172,12 +173,25 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
   Future<Tuple2<AppImageType, ImageProvider>> _loadAppBannerOrIcon(AppsService service) async {
     Uint8List bytes = Uint8List(0);
 
-    bytes = await service.getAppBanner(widget.application.packageName);
+    if(widget.application.deeplinkUrl != null) {
+      logDebug("load banner for deeplink ${widget.application.deeplinkUrl}");
+
+      ByteData assetData = await rootBundle.load(widget.application.banner!);
+      bytes = assetData.buffer.asUint8List();
+
+      logDebug("banner byte size ${bytes.lengthInBytes}");
+    }
+    else {
+      bytes = await service.getAppBanner(widget.application.packageName);
+    }
+
     AppImageType type = AppImageType.Banner;
 
     if (bytes.isEmpty) {
       type = AppImageType.Icon;
       bytes = await service.getAppIcon(widget.application.packageName);
+    }
+    else {
     }
 
     return Tuple2(type, MemoryImage(bytes));

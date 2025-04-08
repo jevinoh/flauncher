@@ -1,3 +1,5 @@
+package me.efesser.flauncher;
+
 import android.util.Log;
 
 public class DebugUtils {

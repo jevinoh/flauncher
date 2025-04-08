@@ -19,10 +19,12 @@
 import 'dart:typed_data';
 
 import 'package:flauncher/providers/apps_service.dart';
+import 'package:flauncher/utils.dart';
 import 'package:flauncher/widgets/add_to_category_dialog.dart';
 import 'package:flauncher/widgets/application_info_panel.dart';
 import 'package:flauncher/widgets/ensure_visible.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -214,7 +216,17 @@ class _AppListItemState extends State<_AppListItem>
   }
 
   Future<ImageProvider> _loadAppIcon(AppsService service) async {
-    Uint8List bytes = await service.getAppIcon(widget.application.packageName);
+    Uint8List bytes;
+    if(widget.application.deeplinkUrl != null) {
+      logDebug("load banner for deeplink ${widget.application.packageName}");
+      ByteData assetData = await rootBundle.load(widget.application.deeplinkUrl!);
+      bytes = assetData.buffer.asUint8List();
+      logDebug("banner byte size ${bytes.lengthInBytes}");
+
+    }
+    else {
+      bytes = await service.getAppIcon(widget.application.packageName);
+    }
     return MemoryImage(bytes);
   }
 }

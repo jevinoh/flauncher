@@ -32,6 +32,13 @@ enum CategorySort
   alphabetical,
 }
 
+enum CategoryID
+{
+  featureApps,
+  apps
+}
+
+
 enum CategoryType
 {
   row,

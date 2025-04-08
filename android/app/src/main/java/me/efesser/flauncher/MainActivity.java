@@ -18,6 +18,8 @@
 
 package me.efesser.flauncher;
 
+import static me.efesser.flauncher.DebugUtils.log;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.*;
@@ -52,11 +54,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+//import me.efesser.flauncher.DebugUtils;
+
 public class MainActivity extends FlutterActivity
 {
     private final String METHOD_CHANNEL = "me.efesser.flauncher/method";
     private final String APPS_EVENT_CHANNEL = "me.efesser.flauncher/event_apps";
     private final String NETWORK_EVENT_CHANNEL = "me.efesser.flauncher/event_network";
+
+    private static final String TAG = "MainActivity";
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine)
@@ -74,6 +80,7 @@ public class MainActivity extends FlutterActivity
                 case "applicationExists" -> result.success(applicationExists(call.arguments()));
                 case "launchActivityFromAction" -> result.success(launchActivityFromAction(call.arguments()));
                 case "launchApp" -> result.success(launchApp(call.arguments()));
+                case "launchAppDeeplink" -> result.success(launchAppDeeplink(call.arguments()));
                 case "openSettings" -> result.success(openSettings());
                 case "openAppInfo" -> result.success(openAppInfo(call.arguments()));
                 case "uninstallApp" -> result.success(uninstallApp(call.arguments()));
@@ -312,6 +319,16 @@ public class MainActivity extends FlutterActivity
         if (intent == null) {
             intent = packageManager.getLaunchIntentForPackage(packageName);
         }
+
+        return tryStartActivity(intent);
+    }
+
+    private boolean launchAppDeeplink(String packageName) {
+        log(TAG, "Launching app deeplink for [" + packageName +"]");
+
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + packageName));
+        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        intent.setPackage("com.android.vending");
 
         return tryStartActivity(intent);
     }

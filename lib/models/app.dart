@@ -32,12 +32,18 @@ class App
 
   String? action;
 
+  String? deeplinkUrl;
+
+  String? banner;
+
   App({
     required this.packageName,
     required this.name,
     required this.version,
     required this.hidden,
-    this.action = null
+    this.action = null,
+    this.deeplinkUrl = null,
+    this.banner = null
   }):
     categoryOrders = Map(),
     sideloaded = false;

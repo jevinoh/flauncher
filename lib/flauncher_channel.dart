@@ -47,6 +47,8 @@ class FLauncherChannel {
 
   Future<void> launchApp(String packageName) async => await _methodChannel.invokeMethod('launchApp', packageName);
 
+  Future<void> launchAppDeeplink(String packageName) async => await _methodChannel.invokeMethod('launchAppDeeplink', packageName);
+
   Future<void> openSettings() async => await _methodChannel.invokeMethod('openSettings');
 
   Future<void> openAppInfo(String packageName) async => await _methodChannel.invokeMethod('openAppInfo', packageName);

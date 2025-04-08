@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import '../../models/category.dart';
+import '../../utils.dart';
 
 class _SettingsState extends ChangeNotifier
 {
@@ -516,6 +517,8 @@ class _CategorySettingsState extends State<_CategorySettings>
   {
     final AppsService service = context.read();
     if (_creating) {
+      logDebug("addCategory - name: ${_name}");
+
       await service.addCategory(_name, sort: _categorySort, type: _categoryType,
           columnsCount: _columnsCount, rowHeight: _rowHeight
       );

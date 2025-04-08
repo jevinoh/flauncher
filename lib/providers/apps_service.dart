@@ -53,6 +53,31 @@ class AppsService extends ChangeNotifier
       .map((category) => category.unmodifiable())
       .toList(growable: false);
 
+  List<Map<String, dynamic>> featuredApps = [
+    {
+      "name": "Ziggapp",
+      "packageName": "com.ziggapp.tv",
+      "banner": "assets/banner-ziggapp.png"
+    },
+    {
+      "name": "Netflix",
+      "packageName": "com.netflix.ninja",
+      "banner": "assets/banner-netflix.png"
+    },
+    {
+      "name": "Hulu",
+      "packageName": "com.hulu.plus",
+      "banner": "assets/banner-hulu.png"
+    },
+    {
+      "name": "Amazon Prime video",
+      "packageName": "com.amazon.amazonvideo.livingroom",
+      "banner": "assets/banner-amazonprime.png"
+    }
+  ];
+
+
+
   AppsService(this._fLauncherChannel, this._database) {
     _init();
   }
@@ -122,25 +147,25 @@ class AppsService extends ChangeNotifier
   }
 
   Future<void> _initDefaultCategories() {
-    final tvApplications = _applications.values.where((application) => application.sideloaded == false);
+    // final tvApplications = _applications.values.where((application) => application.sideloaded == false);
     // final nonTvApplications = _applications.values.where((application) => application.sideloaded == true);
 
     return _database.transaction(() async {
-      if (tvApplications.isNotEmpty) {
-        logDebug("addCategory : My Lists");
-        int categoryId = await addCategory("My Lists",
-            type: CategoryType.row, shouldNotifyListeners: false
-        );
-
-        Category tvAppsCategory = _categoriesById[categoryId]!;
-        tvAppsCategory.sort = CategorySort.manual;
-        for (final app in tvApplications) {
-          await addToCategory(app, tvAppsCategory, shouldNotifyListeners: false);
-        }
-
-        sortCategory(tvAppsCategory);
-
-      }
+      // if (tvApplications.isNotEmpty) {
+      //   logDebug("addCategory : My Lists");
+      //   int categoryId = await addCategory("My Lists",
+      //       type: CategoryType.row, shouldNotifyListeners: false
+      //   );
+      //
+      //   Category tvAppsCategory = _categoriesById[categoryId]!;
+      //   tvAppsCategory.sort = CategorySort.manual;
+      //   for (final app in tvApplications) {
+      //     await addToCategory(app, tvAppsCategory, shouldNotifyListeners: false);
+      //   }
+      //
+      //   sortCategory(tvAppsCategory);
+      //
+      // }
       // if (nonTvApplications.isNotEmpty) {
       //   int categoryId = await addCategory("Non-TV Applications",
       //     shouldNotifyListeners: false,
@@ -206,17 +231,41 @@ class AppsService extends ChangeNotifier
 
     appsFromDatabase = await appsFromDatabaseFuture;
     List<AppCategory> appsCategories = await appsCategoriesFuture;
-    List<Category> categories = await categoriesFuture;
+    List<Category> categories = [];
     List<LauncherSpacer> spacers = await spacersFuture;
 
-    categories.removeWhere((category) => category.id == 2);
+    // categories.removeWhere((category) => category.id == 2);
 
     for (var category in appsCategories) {
       logDebug("appsCategories - ID[${category.categoryId}] Name[${category.appPackageName}]");
     }
 
+    Category featured = new Category(
+      name: "Featured Apps",
+      id: CategoryID.featureApps.index,
+      order: 0,
+      columnsCount: 6,
+      rowHeight: 110,
+      sort: CategorySort.manual,
+      type: CategoryType.row,
+    );
+
+    categories.add(featured);
+
+    Category appLists = new Category(
+      name: "My Lists",
+      id: CategoryID.apps.index,
+      order: 0,
+      columnsCount: 6,
+      rowHeight: 110,
+      sort: CategorySort.activeTime,
+      type: CategoryType.row,
+    );
+
+    categories.add(appLists);
+
     for (var category in categories) {
-      logDebug("categories - Name: ${category.name}");
+      logDebug("categories - name[${category.name}] id[${category.id}] order[${category.order}] columnsCount[${category.columnsCount}] rowHeight[${category.rowHeight}] sort[${category.sort}] type[${category.type}]");
     }
 
 
@@ -251,13 +300,46 @@ class AppsService extends ChangeNotifier
       int categoryId = 1; // for TV app lists
 
       if (!application.hidden) {
-        if (_categoriesById.containsKey(categoryId)) {
-          Category category = _categoriesById[categoryId]!;
+        bool exists = featuredApps.any((app) => app["packageName"] == application.packageName);
+        if (_categoriesById.containsKey(CategoryID.featureApps.index) && exists) {
+          Category category = _categoriesById[CategoryID.featureApps.index]!;
+          application.categoryOrders[category.id] = CategorySort.manual.index;
+          category.applications.add(application);
+        }
+        else if (_categoriesById.containsKey(CategoryID.apps.index)) {
+          Category category = _categoriesById[CategoryID.apps.index]!;
           application.categoryOrders[category.id] = CategorySort.manual.index;
           category.applications.add(application);
         }
       }
     }
+
+    for (var featured in featuredApps) {
+      String packageName = featured["packageName"];
+      bool found = false;
+      App appInfo;
+      for (var app in _categoriesById[CategoryID.featureApps.index]!.applications) {
+        if (app.packageName == packageName) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        App appInfo = new App(
+                            packageName : packageName,
+                            name : featured["name"],
+                            version : "0",
+                            hidden : false,
+                            action : null,
+                            deeplinkUrl : "https://play.google.com/store/apps/details?id=" + packageName,
+                            banner : featured["banner"]
+        );
+
+        _categoriesById[CategoryID.featureApps.index]!.applications.add(appInfo);
+      }
+    }
+
 
     for (Category category in _categoriesById.values) {
       sortCategory(category);
@@ -271,11 +353,13 @@ class AppsService extends ChangeNotifier
   void sortCategory(Category category) {
     logDebug("start");
 
-    // priority app packagenames in the specific order
-    // TODO: find the zigapp apk to check it's actual packagename
-    final priorityApps = ['zigapp', 'com.netflix.ninja', 'com.hulu.plus', 'com.amazon.amazonvideo.livingroom'];
+    if(category.id == CategoryID.featureApps)
+    {
+      // priority app packagenames in the specific order
+      // TODO: find the zigapp apk to check it's actual packagename
+      final priorityApps = ['com.ziggapp.tv', 'com.netflix.ninja', 'com.hulu.plus', 'com.amazon.amazonvideo.livingroom'];
 
-    category.applications.sort((a, b) {
+      category.applications.sort((a, b) {
       final indexA = priorityApps.indexWhere((name) => a.packageName.toLowerCase().contains(name));
       final indexB = priorityApps.indexWhere((name) => b.packageName.toLowerCase().contains(name));
 
@@ -295,7 +379,12 @@ class AppsService extends ChangeNotifier
 
       // Neither is in priority list → keep existing order
       return 0;
-    });
+      });
+    }
+    else if(category.id == CategoryID.apps) {
+      // Do nothing for now
+    }
+
   }
 
 
@@ -309,8 +398,11 @@ class AppsService extends ChangeNotifier
 
   Future<void> launchApp(App app) {
     Future<void> future;
-    if (app.action == null) {
+    if (app.action == null && app.deeplinkUrl == null) {
       future = _fLauncherChannel.launchApp(app.packageName);
+    }
+    else if (app.action == null && app.deeplinkUrl != null) {
+      future = _fLauncherChannel.launchAppDeeplink(app.packageName);
     }
     else {
       future = _fLauncherChannel.launchActivityFromAction(app.action!);
