@@ -54,29 +54,11 @@ class AppsService extends ChangeNotifier
       .toList(growable: false);
 
   List<Map<String, dynamic>> featuredApps = [
-    {
-      "name": "Ziggapp",
-      "packageName": "com.ziggapp.tv",
-      "banner": "assets/banner-ziggapp.png"
-    },
-    {
-      "name": "Netflix",
-      "packageName": "com.netflix.ninja",
-      "banner": "assets/banner-netflix.png"
-    },
-    {
-      "name": "Hulu",
-      "packageName": "com.hulu.plus",
-      "banner": "assets/banner-hulu.png"
-    },
-    {
-      "name": "Amazon Prime video",
-      "packageName": "com.amazon.amazonvideo.livingroom",
-      "banner": "assets/banner-amazonprime.png"
-    }
+    {"name": "Ziggapp", "packageName": "com.ziggapp.tv", "banner": "assets/banner-ziggapp.png"},
+    {"name": "Netflix", "packageName": "com.netflix.ninja", "banner": "assets/banner-netflix.png"},
+    {"name": "Hulu", "packageName": "com.hulu.plus", "banner": "assets/banner-hulu.png"},
+    {"name": "Amazon Prime video", "packageName": "com.amazon.amazonvideo.livingroom", "banner": "assets/banner-amazonprime.png"}
   ];
-
-
 
   AppsService(this._fLauncherChannel, this._database) {
     _init();
@@ -297,8 +279,6 @@ class AppsService extends ChangeNotifier
         }
       }
 
-      int categoryId = 1; // for TV app lists
-
       if (!application.hidden) {
         bool exists = featuredApps.any((app) => app["packageName"] == application.packageName);
         if (_categoriesById.containsKey(CategoryID.featureApps.index) && exists) {
@@ -306,7 +286,7 @@ class AppsService extends ChangeNotifier
           application.categoryOrders[category.id] = CategorySort.manual.index;
           category.applications.add(application);
         }
-        else if (_categoriesById.containsKey(CategoryID.apps.index)) {
+        else if (_categoriesById.containsKey(CategoryID.apps.index) && application.packageName != "me.efesser.flauncher") {
           Category category = _categoriesById[CategoryID.apps.index]!;
           application.categoryOrders[category.id] = CategorySort.manual.index;
           category.applications.add(application);
@@ -353,36 +333,38 @@ class AppsService extends ChangeNotifier
   void sortCategory(Category category) {
     logDebug("start");
 
-    if(category.id == CategoryID.featureApps)
+    if(category.id == CategoryID.featureApps.index)
     {
+      logDebug("featureApps sort");
       // priority app packagenames in the specific order
       // TODO: find the zigapp apk to check it's actual packagename
       final priorityApps = ['com.ziggapp.tv', 'com.netflix.ninja', 'com.hulu.plus', 'com.amazon.amazonvideo.livingroom'];
 
       category.applications.sort((a, b) {
-      final indexA = priorityApps.indexWhere((name) => a.packageName.toLowerCase().contains(name));
-      final indexB = priorityApps.indexWhere((name) => b.packageName.toLowerCase().contains(name));
+        final indexA = priorityApps.indexWhere((name) => a.packageName.toLowerCase().contains(name));
+        final indexB = priorityApps.indexWhere((name) => b.packageName.toLowerCase().contains(name));
 
-      final isAInPriority = indexA != -1;
-      final isBInPriority = indexB != -1;
+        final isAInPriority = indexA != -1;
+        final isBInPriority = indexB != -1;
 
-      // Both in priority list → sort by defined order
-      if (isAInPriority && isBInPriority) {
-        return indexA.compareTo(indexB);
-      }
+        // Both in priority list → sort by defined order
+        if (isAInPriority && isBInPriority) {
+          return indexA.compareTo(indexB);
+        }
 
-      // Only A is in priority list → A comes first
-      if (isAInPriority) return -1;
+        // Only A is in priority list → A comes first
+        if (isAInPriority) return -1;
 
-      // Only B is in priority list → B comes first
-      if (isBInPriority) return 1;
+        // Only B is in priority list → B comes first
+        if (isBInPriority) return 1;
 
-      // Neither is in priority list → keep existing order
-      return 0;
+        // Neither is in priority list → keep existing order
+        return 0;
       });
     }
     else if(category.id == CategoryID.apps) {
       // Do nothing for now
+      logDebug("apps sort");
     }
 
   }
